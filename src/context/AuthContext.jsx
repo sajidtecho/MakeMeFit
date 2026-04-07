@@ -4,10 +4,12 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
   signOut,
-  updateProfile
+  updateProfile,
+  signInWithPopup,
+  GoogleAuthProvider
 } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -55,11 +57,36 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
+  const googleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
+    
+    // Check if user exists in Firestore
+    const docRef = doc(db, 'users', user.uid);
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      await setDoc(docRef, {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName,
+          createdAt: serverTimestamp(),
+          weight: '',
+          height: '',
+          age: '',
+          goalCalories: '2000',
+          goalWorkouts: '4'
+      });
+    }
+    return result;
+  };
+
   const value = {
     currentUser,
     signup,
     login,
-    logout
+    logout,
+    googleLogin
   };
 
   return (
