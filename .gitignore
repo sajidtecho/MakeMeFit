@@ -10,7 +10,6 @@ dist-ssr/
 .DS_Store
 
 # Temporary files
-tmp/
 *.log
 ml_output.txt
 dataset_summary.txt
