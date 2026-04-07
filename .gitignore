@@ -1,0 +1,24 @@
+# node_modules
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Editor directories
+.vscode/
+.idea/
+.DS_Store
+
+# Temporary files
+tmp/
+*.log
+ml_output.txt
+dataset_summary.txt
+
+# Firebase
+.firebase/
+.firebaserc
+
+# OS Files
+Thumbs.db
+Desktop.ini
