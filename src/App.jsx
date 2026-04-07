@@ -10,6 +10,7 @@ import Progress from './pages/Progress'
 import Profile from './pages/Profile'
 import AIPlanner from './pages/AIPlanner'
 import Navbar from './components/Navbar'
+import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useEffect } from 'react'
 import { Dumbbell } from 'lucide-react'
@@ -87,32 +88,7 @@ function App() {
               </Routes>
             </AnimatePresence>
           </main>
-          
-          <footer className="py-12 border-t border-white/5 bg-secondary/20">
-            <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-8">
-              <div className="flex flex-col items-center md:items-start text-center md:text-left gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="bg-primary p-2 rounded-xl">
-                    <Dumbbell className="text-white w-5 h-5" />
-                  </div>
-                  <span className="text-xl font-bold tracking-tight gradient-text">MakeMeFit</span>
-                </div>
-                <p className="text-sm text-muted-foreground font-medium max-w-[300px]">
-                  The world’s most advanced personal fitness tracking ecosystem. Built for elites, accessible to all.
-                </p>
-              </div>
-              
-              <div className="flex items-center gap-10 text-sm font-bold text-muted-foreground uppercase tracking-widest">
-                <a href="#" className="hover:text-primary transition-colors">Privacy</a>
-                <a href="#" className="hover:text-primary transition-colors">Terms</a>
-                <a href="#" className="hover:text-primary transition-colors">Contact</a>
-              </div>
-              
-              <p className="text-xs font-medium text-muted-foreground opacity-40">
-                © 2026 MakeMeFit. All rights reserved.
-              </p>
-            </div>
-          </footer>
+          <Footer />
         </div>
       </AuthProvider>
     </ThemeProvider>
