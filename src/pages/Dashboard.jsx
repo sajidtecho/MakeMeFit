@@ -28,7 +28,7 @@ import {
 import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, userData } = useAuth();
   const [recentWorkouts, setRecentWorkouts] = useState([]);
   const [stats, setStats] = useState({
     calories: 1250,
