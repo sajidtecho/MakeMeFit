@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../services/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import { 
   User as UserIcon, 
   Settings, 
@@ -17,12 +18,28 @@ import {
   Dumbbell 
 } from 'lucide-react';
 
+const ProfileSkeleton = () => (
+  <div className="p-6 lg:p-10 max-w-4xl mx-auto space-y-10 animate-pulse">
+    <div className="flex items-center gap-6">
+      <div className="w-24 h-24 rounded-3xl bg-secondary/50" />
+      <div className="space-y-2">
+        <div className="h-10 w-48 bg-secondary/50 rounded-xl" />
+        <div className="h-5 w-32 bg-secondary/30 rounded-lg" />
+      </div>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {[1, 2].map(i => (
+        <div key={i} className="h-[400px] glass rounded-3xl border-white/5 bg-secondary/10" />
+      ))}
+    </div>
+  </div>
+);
+
 const Profile = () => {
-  const { currentUser } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { currentUser, userData } = useAuth();
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState({
-    displayName: currentUser?.displayName || '',
+    displayName: '',
     weight: '',
     height: '',
     age: '',
@@ -30,44 +47,31 @@ const Profile = () => {
     goalWorkouts: '4',
   });
 
+  // Sync profile state with userData from context
   useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const docRef = doc(db, 'users', currentUser.uid);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setProfile({ ...profile, ...docSnap.data() });
-        } else {
-          // Initialize user document if it doesn't exist
-          await setDoc(docRef, {
-            email: currentUser.email,
-            displayName: currentUser.displayName || '',
-            createdAt: new Date(),
-          });
-        }
-      } catch (err) {
-        console.error("Error fetching profile", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (currentUser) fetchProfile();
-  }, [currentUser]);
+    if (userData) {
+      setProfile({
+        displayName: userData.displayName || currentUser?.displayName || '',
+        weight: userData.weight || '',
+        height: userData.height || '',
+        age: userData.age || '',
+        goalCalories: userData.goalCalories || '2000',
+        goalWorkouts: userData.goalWorkouts || '4',
+      });
+    }
+  }, [userData, currentUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+    const toastId = toast.loading('Syncing with cloud...');
     try {
       const docRef = doc(db, 'users', currentUser.uid);
       
-      // Update Firebase Auth profile if displayName changed
       if (profile.displayName !== currentUser.displayName) {
         await updateProfile(currentUser, { displayName: profile.displayName });
       }
 
-      // Convert numeric fields from string to number before saving to Firestore
       const cleanProfile = {
         ...profile,
         weight: profile.weight ? parseFloat(profile.weight) : '',
@@ -79,10 +83,10 @@ const Profile = () => {
       };
 
       await setDoc(docRef, cleanProfile, { merge: true });
-      toast.success('Profile synced with Firebase! 🔥');
+      toast.success('Profile updated successfully! 🔥', { id: toastId });
     } catch (err) {
       console.error("Error updating profile", err);
-      toast.error('Sync failed. Please try again.');
+      toast.error('Failed to update profile.', { id: toastId });
     } finally {
       setSaving(false);
     }
@@ -93,44 +97,48 @@ const Profile = () => {
     setProfile(prev => ({ ...prev, [name]: value }));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-10 h-10 text-primary animate-spin" />
-      </div>
-    );
-  }
+  if (!userData) return <ProfileSkeleton />;
 
   return (
-    <div className="p-6 lg:p-10 max-w-4xl mx-auto space-y-10">
-      <section className="flex items-center gap-6">
-        <div className="w-24 h-24 rounded-3xl bg-secondary flex items-center justify-center border-2 border-white/10 relative shadow-2xl shadow-primary/20 pr-2">
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-6 lg:p-10 max-w-4xl mx-auto space-y-10"
+    >
+      <header className="flex items-center gap-6">
+        <motion.div 
+          whileHover={{ scale: 1.05 }}
+          className="w-24 h-24 rounded-3xl bg-secondary flex items-center justify-center border-2 border-white/10 relative shadow-2xl shadow-primary/20"
+        >
             <UserIcon className="w-10 h-10 text-primary" />
             <div className="absolute -bottom-2 -right-2 p-2 bg-primary rounded-xl text-white shadow-lg">
                 <Settings className="w-4 h-4" />
             </div>
-        </div>
+        </motion.div>
         <div>
           <h1 className="text-3xl lg:text-4xl font-bold mb-1">Your <span className="gradient-text">Profile</span></h1>
           <p className="text-muted-foreground font-medium">{currentUser.email}</p>
         </div>
-      </section>
+      </header>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Personal Details */}
-        <div className="space-y-6 glass p-8 rounded-3xl border-white/5">
-            <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+        <div className="space-y-6 glass p-8 rounded-3xl border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <UserIcon size={80} className="text-primary" />
+            </div>
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-4 relative z-10">
                 <UserIcon className="w-5 h-5 text-primary" />
                 Personal Details
             </h2>
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-6 relative z-10">
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-muted-foreground ml-2">Display Name</label>
                     <input 
                         name="displayName"
                         value={profile.displayName}
                         onChange={handleChange}
-                        className="w-full p-4 rounded-2xl bg-secondary/50" 
+                        className="w-full p-4 rounded-2xl bg-secondary/50 border border-white/5 focus:border-primary/50 outline-none transition-all" 
                         placeholder="Warrior Name"
                     />
                 </div>
@@ -144,7 +152,7 @@ const Profile = () => {
                             type="number"
                             value={profile.weight}
                             onChange={handleChange}
-                            className="w-full p-4 pl-12 rounded-2xl bg-secondary/50" 
+                            className="w-full p-4 pl-12 rounded-2xl bg-secondary/50 border border-white/5 focus:border-primary/50 outline-none transition-all" 
                             placeholder="70"
                         />
                       </div>
@@ -158,7 +166,7 @@ const Profile = () => {
                             type="number"
                             value={profile.height}
                             onChange={handleChange}
-                            className="w-full p-4 pl-12 rounded-2xl bg-secondary/50" 
+                            className="w-full p-4 pl-12 rounded-2xl bg-secondary/50 border border-white/5 focus:border-primary/50 outline-none transition-all" 
                             placeholder="175"
                         />
                       </div>
@@ -173,7 +181,7 @@ const Profile = () => {
                           type="number"
                           value={profile.age}
                           onChange={handleChange}
-                          className="w-full p-4 pl-12 rounded-2xl bg-secondary/50" 
+                          className="w-full p-4 pl-12 rounded-2xl bg-secondary/50 border border-white/5 focus:border-primary/50 outline-none transition-all" 
                           placeholder="25"
                       />
                     </div>
@@ -182,12 +190,15 @@ const Profile = () => {
         </div>
 
         {/* Goals */}
-        <div className="space-y-6 glass p-8 rounded-3xl border-white/5">
-            <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
+        <div className="space-y-6 glass p-8 rounded-3xl border-white/5 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Target size={80} className="text-primary" />
+            </div>
+            <h2 className="text-xl font-bold flex items-center gap-2 mb-4 relative z-10">
                 <Target className="w-5 h-5 text-primary" />
                 Fitness Goals
             </h2>
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-6 relative z-10">
                 <div className="space-y-2">
                     <label className="text-sm font-bold text-muted-foreground ml-2">Daily Calorie Goal</label>
                     <div className="relative">
@@ -197,7 +208,7 @@ const Profile = () => {
                           type="number"
                           value={profile.goalCalories}
                           onChange={handleChange}
-                          className="w-full p-4 pl-12 rounded-2xl bg-secondary/50" 
+                          className="w-full p-4 pl-12 rounded-2xl bg-secondary/50 border border-white/5 focus:border-primary/50 outline-none transition-all" 
                           placeholder="2000"
                       />
                     </div>
@@ -211,14 +222,14 @@ const Profile = () => {
                           type="number"
                           value={profile.goalWorkouts}
                           onChange={handleChange}
-                          className="w-full p-4 pl-12 rounded-2xl bg-secondary/50" 
+                          className="w-full p-4 pl-12 rounded-2xl bg-secondary/50 border border-white/5 focus:border-primary/50 outline-none transition-all" 
                           placeholder="4"
                       />
                     </div>
                 </div>
             </div>
 
-            <div className="mt-10 p-6 bg-primary/10 rounded-2xl border border-primary/20">
+            <div className="mt-10 p-6 bg-primary/10 rounded-2xl border border-primary/20 relative z-10">
                 <p className="text-xs font-semibold text-primary uppercase tracking-widest mb-1">Tip</p>
                 <p className="text-sm text-foreground/80 leading-relaxed font-medium">
                   Setting realistic goals is the key to consistency. Start small and level up!
@@ -230,21 +241,21 @@ const Profile = () => {
             <button 
                 type="button"
                 onClick={() => window.history.back()}
-                className="px-8 py-4 rounded-2xl bg-secondary text-foreground font-bold hover:bg-secondary/80 transition-all"
+                className="px-8 py-4 rounded-2xl bg-secondary text-foreground font-bold hover:bg-secondary/80 transition-all active:scale-95"
             >
                 Cancel
             </button>
             <button 
                 type="submit"
                 disabled={saving}
-                className="px-8 py-4 rounded-2xl bg-primary text-white font-bold flex items-center gap-2 shadow-lg shadow-primary/30 hover:scale-105 disabled:opacity-50 transition-all"
+                className="px-8 py-4 rounded-2xl bg-primary text-white font-bold flex items-center gap-2 shadow-lg shadow-primary/30 hover:shadow-primary/40 hover:-translate-y-1 active:scale-95 disabled:opacity-50 transition-all font-outfit"
             >
                 {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                Save Profile
+                Save Changes
             </button>
         </div>
       </form>
-    </div>
+    </motion.div>
   );
 };
 

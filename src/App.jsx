@@ -9,6 +9,7 @@ import Workouts from './pages/Workouts'
 import Progress from './pages/Progress'
 import Profile from './pages/Profile'
 import AIPlanner from './pages/AIPlanner'
+import Landing from './pages/Landing'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -84,7 +85,7 @@ function App() {
                     </PageTransition>
                   </ProtectedRoute>
                 } />
-                <Route path="/" element={<Navigate to="/dashboard" />} />
+                <Route path="/" element={<Landing />} />
               </Routes>
             </AnimatePresence>
           </main>
