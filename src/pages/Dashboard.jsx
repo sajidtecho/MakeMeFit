@@ -91,7 +91,15 @@ const Dashboard = () => {
                 <h1 className="text-4xl lg:text-5xl font-bold mb-2">
                     Hey, <span className="gradient-text">{currentUser.displayName?.split(' ')[0] || 'Warrior'}!</span> 👋
                 </h1>
-                <p className="text-muted-foreground">You're on fire! Keep pushing towards your goals.</p>
+                <div className="flex items-center gap-3">
+                    <p className="text-muted-foreground">You're on fire! Keep pushing towards your goals.</p>
+                    {userData?.activePlan && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 border border-primary/20 rounded-full">
+                            <Target className="w-3 h-3 text-primary" />
+                            <span className="text-[10px] font-black uppercase text-primary">Active Plan: {userData.activePlan}</span>
+                        </div>
+                    )}
+                </div>
             </div>
             <Link 
                 to="/workouts" 

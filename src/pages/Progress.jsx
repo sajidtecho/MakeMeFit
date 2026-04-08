@@ -1,5 +1,9 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../services/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 import { 
   TrendingUp, 
   Target, 
@@ -8,7 +12,8 @@ import {
   Shield, 
   User, 
   ChevronRight,
-  Sparkles
+  Sparkles,
+  CheckCircle2
 } from 'lucide-react';
 import { 
     LineChart, 
@@ -23,6 +28,9 @@ import {
 } from 'recharts';
 
 const Progress = () => {
+    const { currentUser, userData } = useAuth();
+    const [isUpdating, setIsUpdating] = React.useState(false);
+
     const plans = [
         {
             title: "Beginner Strength",
@@ -49,6 +57,23 @@ const Progress = () => {
             icon: Award
         }
     ];
+
+    const handleSelectPlan = async (plan) => {
+        if (!currentUser) return;
+        try {
+            setIsUpdating(true);
+            const userRef = doc(db, 'users', currentUser.uid);
+            await updateDoc(userRef, {
+                activePlan: plan.title
+            });
+            toast.success(`${plan.title} activated! 🚀`);
+        } catch (err) {
+            console.error("Error updating plan", err);
+            toast.error("Failed to activate plan.");
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     const weightData = [
         { month: 'Jan', weight: 80 },
@@ -139,42 +164,59 @@ const Progress = () => {
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {plans.map((plan, idx) => (
-                        <motion.div 
-                            key={idx}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: idx * 0.1 }}
-                            className="glass p-8 rounded-[3rem] card-hover relative group cursor-pointer"
-                        >
-                            <div className="w-16 h-16 bg-secondary rounded-[1.5rem] flex items-center justify-center mb-8 group-hover:bg-primary group-hover:text-white transition-all duration-500">
-                                <plan.icon className="w-8 h-8" />
-                            </div>
-                            <h3 className="text-2xl font-bold mb-4">{plan.title}</h3>
-                            <p className="text-muted-foreground text-sm leading-relaxed mb-10">{plan.desc}</p>
-                            
-                            <div className="grid grid-cols-3 gap-2 border-t border-white/5 pt-8">
-                                <div className="text-center">
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-tighter">Duration</p>
-                                    <p className="text-xs font-bold">{plan.duration}</p>
+                    {plans.map((plan, idx) => {
+                        const isActive = userData?.activePlan === plan.title;
+                        return (
+                            <motion.div 
+                                key={idx}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.1 }}
+                                onClick={() => handleSelectPlan(plan)}
+                                className={`glass p-8 rounded-[3rem] card-hover relative group cursor-pointer border-2 transition-all duration-500 scale-100 active:scale-95 ${
+                                    isActive ? 'border-primary ring-4 ring-primary/20' : 'border-white/5'
+                                }`}
+                            >
+                                <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center mb-8 transition-all duration-500 ${
+                                    isActive ? 'bg-primary text-white scale-110' : 'bg-secondary group-hover:bg-primary group-hover:text-white'
+                                }`}>
+                                    <plan.icon className="w-8 h-8" />
                                 </div>
-                                <div className="text-center">
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-tighter">Intensity</p>
-                                    <p className="text-xs font-bold text-primary">{plan.intensity}</p>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-2xl font-bold">{plan.title}</h3>
+                                    {isActive && (
+                                        <span className="flex items-center gap-1 text-[10px] font-black uppercase text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+                                            <CheckCircle2 className="w-3 h-3" /> Active
+                                        </span>
+                                    )}
                                 </div>
-                                <div className="text-center">
-                                    <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-tighter">Exercises</p>
-                                    <p className="text-xs font-bold">{plan.exercises}</p>
+                                <p className="text-muted-foreground text-sm leading-relaxed mb-10">{plan.desc}</p>
+                                
+                                <div className="grid grid-cols-3 gap-2 border-t border-white/5 pt-8">
+                                    <div className="text-center">
+                                        <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-tighter">Duration</p>
+                                        <p className="text-xs font-bold">{plan.duration}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-tighter">Intensity</p>
+                                        <p className={`text-xs font-bold ${isActive ? 'text-primary' : ''}`}>{plan.intensity}</p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[10px] font-black uppercase text-muted-foreground mb-1 tracking-tighter">Exercises</p>
+                                        <p className="text-xs font-bold">{plan.exercises}</p>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div className="absolute bottom-8 right-8 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/40">
-                                    <ChevronRight className="w-6 h-6 text-white" />
+                                
+                                <div className={`absolute bottom-8 right-8 transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all ${
+                                        isActive ? 'bg-green-500 shadow-green-500/40' : 'bg-primary shadow-primary/40'
+                                    }`}>
+                                        <ChevronRight className="w-6 h-6 text-white" />
+                                    </div>
                                 </div>
-                            </div>
-                        </motion.div>
-                    ))}
+                            </motion.div>
+                        );
+                    })}
                 </div>
             </section>
         </div>
