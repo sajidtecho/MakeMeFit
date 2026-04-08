@@ -9,7 +9,7 @@ import {
   GoogleAuthProvider
 } from 'firebase/auth';
 import { auth, db } from '../services/firebase';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
@@ -19,6 +19,7 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   async function signup(email, password, displayName) {
@@ -26,7 +27,7 @@ export function AuthProvider({ children }) {
     await updateProfile(userCredential.user, { displayName });
     
     // Initialize Firestore user document
-    await setDoc(doc(db, 'users', userCredential.user.uid), {
+    const userDoc = {
       uid: userCredential.user.uid,
       email,
       displayName,
@@ -36,7 +37,10 @@ export function AuthProvider({ children }) {
       age: '',
       goalCalories: '2000',
       goalWorkouts: '4',
-    });
+    };
+    
+    await setDoc(doc(db, 'users', userCredential.user.uid), userDoc);
+    setUserData(userDoc);
     
     return userCredential;
   }
@@ -50,11 +54,32 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, user => {
+    let unsubscribeDoc;
+    
+    const unsubscribeAuth = onAuthStateChanged(auth, user => {
       setCurrentUser(user);
-      setLoading(false);
+      
+      if (user) {
+        // Listen to user document changes
+        unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+          if (doc.exists()) {
+            setUserData(doc.data());
+          }
+          setLoading(false);
+        }, (err) => {
+          console.error("Error fetching user data", err);
+          setLoading(false);
+        });
+      } else {
+        setUserData(null);
+        setLoading(false);
+      }
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeDoc) unsubscribeDoc();
+    };
   }, []);
 
   const googleLogin = async () => {
@@ -66,7 +91,7 @@ export function AuthProvider({ children }) {
     const docRef = doc(db, 'users', user.uid);
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
-      await setDoc(docRef, {
+      const newUser = {
           uid: user.uid,
           email: user.email,
           displayName: user.displayName,
@@ -76,13 +101,18 @@ export function AuthProvider({ children }) {
           age: '',
           goalCalories: '2000',
           goalWorkouts: '4'
-      });
+      };
+      await setDoc(docRef, newUser);
+      setUserData(newUser);
+    } else {
+      setUserData(docSnap.data());
     }
     return result;
   };
 
   const value = {
     currentUser,
+    userData,
     signup,
     login,
     logout,

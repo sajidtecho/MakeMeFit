@@ -30,4 +30,3 @@ enableIndexedDbPersistence(db).catch((err) => {
 });
 
 export default app;
-export default app;
